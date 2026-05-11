@@ -5,7 +5,9 @@ Engine is later ported to Rust behind the same API for a ~2-3x speedup.
 
 ## Status
 
-Phase 0 — Foundations. The project is being built up phase by phase. See `docs/` (later) for the full plan.
+Phase 1 — Routing Core. CSR graph, three profiles (car/bike/foot), three algorithms
+(Dijkstra, A*, bidirectional Dijkstra) with an indexed binary heap. CLI takes a
+real `.osm.pbf` and lat/lon coordinates, returns a JSON route.
 
 ## Repository layout
 
@@ -44,19 +46,36 @@ Or on macOS/Linux:
 
 This compiles the engine, runs unit tests, and prints a summary.
 
-## Try the OSM loader
+## Try the OSM loader (Phase 0)
 
-Download a small OSM extract (e.g. Liechtenstein, ~1 MB):
+Download a small OSM extract (e.g. Liechtenstein, ~1.5 MB):
 
 - https://download.geofabrik.de/europe/liechtenstein.html
 
 Save it to `data/liechtenstein-latest.osm.pbf`, then:
 
 ```powershell
-.\mvnw.cmd -pl engine compile exec:java "-Dexec.mainClass=com.routeforge.engine.osm.OsmPbfLoader" "-Dexec.args=data/liechtenstein-latest.osm.pbf"
+.\mvnw.cmd -pl engine compile exec:java `
+  "-Dexec.mainClass=com.routeforge.engine.osm.OsmPbfLoader" `
+  "-Dexec.args=data/liechtenstein-latest.osm.pbf"
 ```
 
-You should see counts of nodes, ways, and relations.
+Prints counts of nodes, ways, and relations.
+
+## Try the router (Phase 1)
+
+Same `.osm.pbf` file, then plan a route between two coordinates:
+
+```powershell
+.\mvnw.cmd -pl engine compile exec:java `
+  "-Dexec.mainClass=com.routeforge.engine.cli.RouteCli" `
+  "-Dexec.args=--pbf data/liechtenstein-latest.osm.pbf --from 47.142,9.524 --to 47.166,9.510 --profile car --algo astar"
+```
+
+Pass `--algo dijkstra | astar | bidirectional` and
+`--profile car | bike | foot` to compare. Output is JSON with route geometry,
+distance, duration, and how many nodes the algorithm settled (useful for
+comparing the algorithms head-to-head on the same query).
 
 ## License
 
