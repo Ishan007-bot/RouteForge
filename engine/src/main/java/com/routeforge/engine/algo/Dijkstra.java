@@ -137,15 +137,10 @@ public final class Dijkstra implements ShortestPath {
 
     /**
      * Find the source node of an edge given its global index.
-     * Binary search over {@code edgeOffsets} — O(log n).
+     * Delegates to {@link RoadGraph#source(int)}; kept here so existing
+     * package-private callers (A*, Bidirectional) don't need to be edited.
      */
     static int predecessorOf(RoadGraph g, int edgeIndex) {
-        int lo = 0, hi = g.nodeCount() - 1;
-        while (lo < hi) {
-            int mid = (lo + hi + 1) >>> 1;
-            if (g.firstEdge(mid) <= edgeIndex) lo = mid;
-            else hi = mid - 1;
-        }
-        return lo;
+        return g.source(edgeIndex);
     }
 }
