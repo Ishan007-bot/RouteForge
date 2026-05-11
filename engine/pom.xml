@@ -36,10 +36,15 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
+        <!-- Console SLF4J binding for engine's standalone CLI / tests only.
+             optional=true prevents this from propagating to the api module,
+             which uses Spring Boot's Logback instead. Without this exclusion,
+             both bindings end up on the API classpath and SLF4J refuses to start. -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <scope>runtime</scope>
+            <optional>true</optional>
         </dependency>
 
         <!-- Tests -->
