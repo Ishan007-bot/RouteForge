@@ -100,6 +100,23 @@ public final class RoadGraph {
     /** {@code 0} if the source way had no {@code maxspeed} tag. */
     public int maxSpeedKmh(int edgeIndex) { return edgeMaxSpeedKmh[edgeIndex] & 0xFFFF; }
 
+    /**
+     * Find the source node of an edge given its global index.
+     * Binary search over {@code edgeOffsets} — O(log n).
+     * <p>
+     * CSR doesn't store sources directly; we recover them this way. Used by
+     * path-reconstruction code in the algorithms package and by CH.
+     */
+    public int source(int edgeIndex) {
+        int lo = 0, hi = nodeCount() - 1;
+        while (lo < hi) {
+            int mid = (lo + hi + 1) >>> 1;
+            if (edgeOffsets[mid] <= edgeIndex) lo = mid;
+            else hi = mid - 1;
+        }
+        return lo;
+    }
+
     // --- Reverse adjacency accessors (incoming edges of a node) ---
 
     public int firstInEdge(int nodeIndex) { return inEdgeOffsets[nodeIndex]; }
