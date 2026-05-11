@@ -14,25 +14,65 @@
     <artifactId>routeforge-api</artifactId>
     <name>RouteForge API</name>
     <description>
-        Placeholder for Phase 3.
-        Will become a Spring Boot service exposing REST endpoints
-        and WebSocket simulator broadcasts on top of routeforge-engine.
+        Spring Boot service that exposes RouteForge's engine over REST.
+        Endpoints: route, isochrone, health, info. Swagger UI at /swagger-ui.html.
     </description>
 
     <dependencies>
-        <!-- The API depends on the engine. This 'project' reference resolves
-             to the sibling module in the same multi-module build. -->
+        <!-- The engine — our actual routing code. -->
         <dependency>
             <groupId>com.routeforge</groupId>
             <artifactId>routeforge-engine</artifactId>
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Spring Boot: web + validation + caching + actuator (for /health). -->
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Swagger UI / OpenAPI 3 -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Repackage into an executable "fat" jar so we can `java -jar` it. -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

@@ -36,6 +36,8 @@
         <junit.version>5.11.3</junit.version>
         <assertj.version>3.26.3</assertj.version>
         <slf4j.version>2.0.16</slf4j.version>
+        <spring.boot.version>3.4.1</spring.boot.version>
+        <springdoc.version>2.7.0</springdoc.version>
 
         <!-- Plugin versions -->
         <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
@@ -50,6 +52,22 @@
     -->
     <dependencyManagement>
         <dependencies>
+            <!-- Spring Boot BOM: pins versions for every Spring/Jackson/Tomcat etc. artifact.
+                 Children just say <dependency>spring-boot-starter-web</dependency> without a version. -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- springdoc-openapi: generates Swagger UI from controllers. -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+
             <!-- Osmosis: canonical Java library for OSM data.
                  osmosis-pbf pulls in osmosis-core and the protobuf bindings transitively. -->
             <dependency>
@@ -108,11 +126,25 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven.surefire.plugin.version}</version>
+                    <configuration>
+                        <!--
+                            JDK 25 isn't yet recognized by the Byte Buddy version
+                            bundled with Spring Boot 3.4.x → Mockito. Enabling its
+                            experimental flag lets it run unmodified on JDK 25.
+                            Drop this once Spring Boot ships a newer Byte Buddy.
+                        -->
+                        <argLine>-Dnet.bytebuddy.experimental=true</argLine>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>exec-maven-plugin</artifactId>
                     <version>${exec.maven.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring.boot.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
