@@ -1,0 +1,31 @@
+# GitHub Actions CI: runs on every push and PR.
+# If you push this repo to GitHub, this workflow auto-runs and turns red
+# if any test fails. That's your safety net while refactoring.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    name: Build & test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven        # cache ~/.m2 between runs for faster builds
+
+      - name: Build & run unit tests
+        run: ./mvnw -B -ntp verify
+        # -B  : batch mode (no interactive prompts)
+        # -ntp: no transfer progress (cleaner log output)

@@ -1,0 +1,52 @@
+# Build output
+target/
+build/
+out/
+*.class
+*.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Local env / secrets
+.env
+.env.local
+application-local.yml
+
+# Map data (downloaded, large)
+data/*.pbf
+data/*.osm
+data/*.osm.bz2
+data/*.gtfs.zip
+data/cache/
+!data/.gitkeep
+!data/README.md
+
+# Node / frontend (Phase 4)
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Rust (Phase 6+)
+engine-rs/target/
+
+# Maven Wrapper - keep config/scripts tracked but ignore the downloaded distribution
+.mvn/wrapper/apache-maven-*/
+.mvn/wrapper/maven.zip
+!.mvn/wrapper/maven-wrapper.properties
