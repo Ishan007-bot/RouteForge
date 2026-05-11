@@ -5,9 +5,14 @@ Engine is later ported to Rust behind the same API for a ~2-3x speedup.
 
 ## Status
 
-Phase 1 — Routing Core. CSR graph, three profiles (car/bike/foot), three algorithms
-(Dijkstra, A*, bidirectional Dijkstra) with an indexed binary heap. CLI takes a
-real `.osm.pbf` and lat/lon coordinates, returns a JSON route.
+Phase 3 — Backend API. Spring Boot service over the engine: REST endpoints for
+routing, isochrones, and metadata; in-memory route cache; Swagger UI; full
+MockMvc + end-to-end test coverage.
+
+Previous phases:
+- Phase 0: Multi-module Maven scaffold + OSM PBF loader.
+- Phase 1: CSR graph, car/bike/foot profiles, Dijkstra + A* + Bidirectional with indexed heap.
+- Phase 2: Contraction Hierarchies (sub-millisecond queries on large graphs).
 
 ## Repository layout
 
@@ -72,10 +77,35 @@ Same `.osm.pbf` file, then plan a route between two coordinates:
   "-Dexec.args=--pbf data/liechtenstein-latest.osm.pbf --from 47.142,9.524 --to 47.166,9.510 --profile car --algo astar"
 ```
 
-Pass `--algo dijkstra | astar | bidirectional` and
+Pass `--algo dijkstra | astar | bidirectional | ch` and
 `--profile car | bike | foot` to compare. Output is JSON with route geometry,
 distance, duration, and how many nodes the algorithm settled (useful for
 comparing the algorithms head-to-head on the same query).
+
+## Run the API (Phase 3)
+
+```powershell
+.\mvnw.cmd -pl api spring-boot:run `
+  "-Dspring-boot.run.arguments=--routeforge.pbf-file=data/liechtenstein-latest.osm.pbf"
+```
+
+The service comes up on `http://localhost:8080`. Useful endpoints:
+
+| Endpoint | What it does |
+|---|---|
+| `GET  /api/info`         | Engine and graph summary. |
+| `POST /api/route`        | Plan a route between two coordinates. |
+| `POST /api/isochrone`    | Area reachable from a point within a time budget. |
+| `GET  /actuator/health`  | Health probe. |
+| `GET  /swagger-ui.html`  | Interactive API docs (try-it-out). |
+
+Quick `curl`:
+
+```bash
+curl -X POST http://localhost:8080/api/route \
+  -H "Content-Type: application/json" \
+  -d '{"fromLat":47.142,"fromLon":9.524,"toLat":47.166,"toLon":9.510,"profile":"car","algo":"astar"}'
+```
 
 ## License
 
