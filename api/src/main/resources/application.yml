@@ -1,0 +1,55 @@
+# Default config. Override on the command line or with an external file:
+#   --routeforge.pbf-file=/path/to/your.osm.pbf
+# or via environment variable:
+#   ROUTEFORGE_PBF_FILE=/path/to/your.osm.pbf
+
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: application/json
+    min-response-size: 1024
+
+spring:
+  application:
+    name: routeforge-api
+  jackson:
+    # Stable JSON order makes diffs and tests less flaky.
+    mapper:
+      sort-properties-alphabetically: false
+    default-property-inclusion: non_null
+
+# Engine configuration
+routeforge:
+  # No default — caller MUST supply one. The graph load happens at startup.
+  pbf-file: ""
+  cors:
+    # Allowed origins for cross-origin requests from the frontend (Phase 4).
+    # In dev we permit the common local frontend ports.
+    allowed-origins:
+      - http://localhost:5173
+      - http://localhost:3000
+      - http://127.0.0.1:5173
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# Swagger UI
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    root: INFO
+    com.routeforge: INFO
+    org.springframework.web: INFO
