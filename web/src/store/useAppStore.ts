@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api, ApiRequestError } from "@/lib/api";
+import { openSimSocket, type SimSocket } from "@/lib/simSocket";
 import type {
   Algo,
   ApiInfo,
@@ -7,19 +8,10 @@ import type {
   LngLat,
   Profile,
   RouteResponse,
+  SimSnapshot,
 } from "@/lib/types";
 
-/**
- * Single Zustand store. We picked Zustand over Context because:
- *  - one file
- *  - tiny API (set/get)
- *  - selective subscriptions out of the box
- *  - no provider wrapping needed
- *
- * All UI state + last route + last isochrone live here.
- */
-
-export type Mode = "route" | "isochrone";
+export type Mode = "route" | "isochrone" | "simulator";
 
 interface AppState {
   // --- API status ---
@@ -64,6 +56,24 @@ interface AppState {
   compareError: string | null;
   runComparison: () => Promise<void>;
   clearComparison: () => void;
+
+  // --- Simulator ---
+  simSnapshot: SimSnapshot | null;
+  simSocket: SimSocket | null;
+  simError: string | null;
+  simClickAction: "spawn-from" | "spawn-to" | "close-edge" | "none";
+  simFleetSize: number;
+  setSimClickAction: (a: AppState["simClickAction"]) => void;
+  setSimFleetSize: (n: number) => void;
+  connectSim: () => void;
+  disconnectSim: () => void;
+  simPlay: () => Promise<void>;
+  simPause: () => Promise<void>;
+  simReset: () => Promise<void>;
+  simSetSpeed: (x: number) => Promise<void>;
+  simSpawnRandomFleet: () => Promise<void>;
+  simSpawnPair: () => Promise<void>;
+  simCloseAt: (lat: number, lon: number) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -79,7 +89,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   mode: "route",
-  setMode: (mode) => set({ mode, route: null, isochrone: null, compareResults: null }),
+  setMode: (mode) => {
+    set({ mode, route: null, isochrone: null, compareResults: null });
+    if (mode === "simulator") get().connectSim();
+    else                      get().disconnectSim();
+  },
 
   from: null,
   to: null,
@@ -115,7 +129,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ profile, compareResults: null });
     const { mode, from, to } = get();
     if (mode === "route" && from && to) void get().fetchRoute();
-    if (mode === "isochrone" && from) void get().fetchIsochrone();
+    if (mode === "isochrone" && from)   void get().fetchIsochrone();
   },
   setAlgo: (algo) => {
     set({ algo, compareResults: null });
@@ -175,8 +189,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ compareLoading: true, compareError: null });
     try {
       const algos: Algo[] = ["dijkstra", "astar", "bidirectional", "ch"];
-      // Run sequentially so the JVM warms each path independently and
-      // we don't measure parallel contention. Each is fast anyway.
       const results: RouteResponse[] = [];
       for (const a of algos) {
         results.push(await api.route({
@@ -191,6 +203,75 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   clearComparison: () => set({ compareResults: null, compareError: null }),
+
+  /* -------------------- Simulator -------------------- */
+
+  simSnapshot: null,
+  simSocket: null,
+  simError: null,
+  simClickAction: "none",
+  simFleetSize: 30,
+  setSimClickAction: (simClickAction) => set({ simClickAction }),
+  setSimFleetSize: (simFleetSize) => set({ simFleetSize: Math.max(1, Math.min(500, simFleetSize)) }),
+
+  connectSim: () => {
+    if (get().simSocket) return;
+    const sock = openSimSocket((snap) => set({ simSnapshot: snap }));
+    set({ simSocket: sock, simError: null });
+  },
+  disconnectSim: () => {
+    get().simSocket?.close();
+    set({ simSocket: null, simSnapshot: null });
+  },
+
+  async simPlay()  { await guarded(() => api.simControl({ action: "play"  })); },
+  async simPause() { await guarded(() => api.simControl({ action: "pause" })); },
+  async simReset() {
+    await guarded(() => api.simControl({ action: "reset" }));
+    set({ simSnapshot: null });
+  },
+  async simSetSpeed(x) { await guarded(() => api.simControl({ speedMultiplier: x })); },
+
+  async simSpawnRandomFleet() {
+    const { info, simFleetSize, profile } = get();
+    if (!info) return;
+    // Pick random (from, to) pairs around the engine's known graph extent.
+    // We don't have the bbox here, so pick around the current map center —
+    // which the MapView attaches to window for this purpose.
+    const ctr = window.__mapCenter ?? { lat: 47.154, lon: 9.5215 };
+    const span = 0.04; // ~4km box
+    const rand = () => (Math.random() * 2 - 1) * span;
+    try {
+      await Promise.all(Array.from({ length: simFleetSize }).map(() =>
+        api.simSpawn({
+          fromLat: ctr.lat + rand(), fromLon: ctr.lon + rand(),
+          toLat:   ctr.lat + rand(), toLon:   ctr.lon + rand(),
+          profile, count: 1,
+        })
+      ));
+      set({ simError: null });
+    } catch (e) { set({ simError: msg(e) }); }
+  },
+
+  async simSpawnPair() {
+    const { from, to, profile } = get();
+    if (!from || !to) return;
+    try {
+      await api.simSpawn({
+        fromLat: from.lat, fromLon: from.lon,
+        toLat:   to.lat,   toLon:   to.lon,
+        profile, count: 1,
+      });
+      set({ simError: null });
+    } catch (e) { set({ simError: msg(e) }); }
+  },
+
+  async simCloseAt(lat, lon) {
+    try {
+      await api.simEvent({ type: "close", lat, lon });
+      set({ simError: null });
+    } catch (e) { set({ simError: msg(e) }); }
+  },
 }));
 
 function msg(e: unknown): string {
@@ -198,4 +279,16 @@ function msg(e: unknown): string {
     return e.details.length ? `${e.message} (${e.details.join("; ")})` : e.message;
   }
   return e instanceof Error ? e.message : String(e);
+}
+
+async function guarded<T>(fn: () => Promise<T>) {
+  try { await fn(); }
+  catch (e) { useAppStore.setState({ simError: msg(e) }); }
+}
+
+declare global {
+  // The MapView writes the current map center here on every moveend so the
+  // store can read it without a circular dep.
+  // eslint-disable-next-line no-var
+  var __mapCenter: { lat: number; lon: number } | undefined;
 }
