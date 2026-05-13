@@ -5,6 +5,9 @@ import type {
   IsochroneResponse,
   RouteRequest,
   RouteResponse,
+  SimControlRequest,
+  SimEventRequest,
+  SimSpawnRequest,
 } from "./types";
 
 /**
@@ -50,6 +53,24 @@ export const api = {
 
   isochrone: (req: IsochroneRequest) =>
     request<IsochroneResponse>("/api/isochrone", {
+      method: "POST",
+      body: JSON.stringify(req),
+    }),
+
+  simControl: (req: SimControlRequest) =>
+    request<unknown>("/api/sim/control", {
+      method: "POST",
+      body: JSON.stringify(req),
+    }),
+
+  simSpawn: (req: SimSpawnRequest) =>
+    request<{ firstId: number; count: number }>("/api/sim/spawn", {
+      method: "POST",
+      body: JSON.stringify(req),
+    }),
+
+  simEvent: (req: SimEventRequest) =>
+    request<{ edgeId: number; type: string }>("/api/sim/event", {
       method: "POST",
       body: JSON.stringify(req),
     }),

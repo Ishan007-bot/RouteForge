@@ -61,3 +61,58 @@ export interface LngLat {
   lat: number;
   lon: number;
 }
+
+/* -------------------- Simulator -------------------- */
+
+export type VehicleStatus = "active" | "arrived" | "stuck";
+
+export interface VehicleSnap {
+  id: number;
+  lat: number;
+  lon: number;
+  heading: number;
+  status: VehicleStatus;
+  profile: Profile;
+  progressFraction: number;
+}
+
+export interface EdgeSnap {
+  edgeId: number;
+  fromLat: number;
+  fromLon: number;
+  toLat: number;
+  toLon: number;
+}
+
+export interface SimSnapshot {
+  tick: number;
+  simSeconds: number;
+  activeVehicles: number;
+  arrivedVehicles: number;
+  stuckVehicles: number;
+  congestedEdges: number;
+  closedEdges: number;
+  speedMultiplier: number;
+  running: boolean;
+  vehicles: VehicleSnap[];
+  closedEdgeGeoms: EdgeSnap[];
+}
+
+export interface SimSpawnRequest {
+  fromLat: number; fromLon: number;
+  toLat:   number; toLon:   number;
+  profile: Profile;
+  count:   number;
+}
+
+export interface SimEventRequest {
+  type: "close" | "open";
+  lat:  number;
+  lon:  number;
+  edgeId?: number;
+}
+
+export interface SimControlRequest {
+  action?: "play" | "pause" | "reset";
+  speedMultiplier?: number;
+}
