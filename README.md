@@ -5,14 +5,15 @@ Engine is later ported to Rust behind the same API for a ~2-3x speedup.
 
 ## Status
 
-Phase 3 — Backend API. Spring Boot service over the engine: REST endpoints for
-routing, isochrones, and metadata; in-memory route cache; Swagger UI; full
-MockMvc + end-to-end test coverage.
+Phase 4 — Web Frontend. React + TypeScript + Vite + MapLibre GL JS frontend
+on top of the API. Click-to-place pins, profile/algo switchers, isochrone
+overlay, side-by-side algorithm comparison.
 
 Previous phases:
 - Phase 0: Multi-module Maven scaffold + OSM PBF loader.
 - Phase 1: CSR graph, car/bike/foot profiles, Dijkstra + A* + Bidirectional with indexed heap.
 - Phase 2: Contraction Hierarchies (sub-millisecond queries on large graphs).
+- Phase 3: Spring Boot REST API with Swagger, validation, in-memory cache, full test coverage.
 
 ## Repository layout
 
@@ -106,6 +107,30 @@ curl -X POST http://localhost:8080/api/route \
   -H "Content-Type: application/json" \
   -d '{"fromLat":47.142,"fromLon":9.524,"toLat":47.166,"toLon":9.510,"profile":"car","algo":"astar"}'
 ```
+
+## Run the web frontend (Phase 4)
+
+First make sure the API is running (above), then in a second terminal:
+
+```powershell
+cd web
+npm install      # one-time
+npm run dev
+```
+
+Opens on `http://localhost:5173`. Vite proxies `/api/*` to the Spring Boot
+backend so there are no CORS surprises in dev.
+
+Features:
+- Dark glassmorphic UI; vector tiles via OpenFreeMap.
+- Click the map to place start/destination pins (drag to refine).
+- Profile switcher (Car / Bike / Foot), algorithm switcher (Dijkstra / A★ / Bidirectional / CH).
+- Routes auto-recompute on every change.
+- **Compare all algorithms** button: runs every algorithm on the same query
+  and shows distance, duration, search time, and nodes settled side-by-side.
+- Isochrone mode: drag the budget slider to see the area reachable in N minutes
+  as a heatmap overlay.
+- Keyboard: `Esc` clears all pins.
 
 ## License
 
