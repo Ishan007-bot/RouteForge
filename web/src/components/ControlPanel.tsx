@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import {
-  Bike, Car, Footprints, GitCompareArrows, Navigation, Radar, RotateCcw,
+  Bike, Car, Footprints, GitCompareArrows, Navigation, Radar, RotateCcw, Activity,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import type { Algo, Profile } from "@/lib/types";
@@ -8,6 +8,7 @@ import { Button, Segmented } from "./ui";
 import { PinList } from "./PinList";
 import { StatsCard } from "./StatsCard";
 import { IsochronePanel } from "./IsochronePanel";
+import { SimulationPanel } from "./SimulationPanel";
 
 export function ControlPanel() {
   const mode          = useAppStore((s) => s.mode);
@@ -31,12 +32,13 @@ export function ControlPanel() {
   return (
     <aside className="relative flex h-full w-[380px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-brass-700/25 bg-ink-900/90 px-5 py-6">
       <Section title="Mode">
-        <Segmented<"route" | "isochrone">
+        <Segmented<"route" | "isochrone" | "simulator">
           value={mode}
           onChange={setMode}
           options={[
             { value: "route",     label: "Route",     icon: <Navigation className="h-3 w-3" /> },
             { value: "isochrone", label: "Isochrone", icon: <Radar      className="h-3 w-3" /> },
+            { value: "simulator", label: "Simulator", icon: <Activity   className="h-3 w-3" /> },
           ]}
         />
       </Section>
@@ -69,35 +71,44 @@ export function ControlPanel() {
         </Section>
       )}
 
-      <Section
-        title="Endpoints"
-        action={
-          <button
-            type="button"
-            onClick={clear}
-            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-paper-300 transition hover:text-brass-300"
-          >
-            <RotateCcw className="h-3 w-3" />
-            Reset
-          </button>
-        }
-      >
-        <PinList />
-      </Section>
-
-      <Section title={mode === "route" ? "Result" : "Isochrone"}>
-        {mode === "route" ? <StatsCard /> : <IsochronePanel />}
-      </Section>
+      {(mode === "route" || mode === "isochrone" || mode === "simulator") && (
+        <Section
+          title={mode === "isochrone" ? "Origin" : "Endpoints"}
+          action={
+            <button
+              type="button"
+              onClick={clear}
+              className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-paper-300 transition hover:text-brass-300"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset
+            </button>
+          }
+        >
+          <PinList />
+        </Section>
+      )}
 
       {mode === "route" && (
-        <Button
-          variant="primary"
-          onClick={runComparison}
-          disabled={!from || !to || !route?.found}
-          icon={<GitCompareArrows className="h-3.5 w-3.5" />}
-        >
-          Compare all algorithms
-        </Button>
+        <>
+          <Section title="Result"><StatsCard /></Section>
+          <Button
+            variant="primary"
+            onClick={runComparison}
+            disabled={!from || !to || !route?.found}
+            icon={<GitCompareArrows className="h-3.5 w-3.5" />}
+          >
+            Compare all algorithms
+          </Button>
+        </>
+      )}
+
+      {mode === "isochrone" && (
+        <Section title="Isochrone"><IsochronePanel /></Section>
+      )}
+
+      {mode === "simulator" && (
+        <Section title="Simulation"><SimulationPanel /></Section>
       )}
     </aside>
   );
