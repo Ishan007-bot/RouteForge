@@ -1,0 +1,22 @@
+[package]
+name = "routeforge-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CLI for the RouteForge Rust core: load a PBF, route, and benchmark."
+
+[dependencies]
+routeforge-core = { path = "../core" }
+clap.workspace = true
+anyhow.workspace = true
+# osmpbf is intentionally omitted for phase 6a — it transitively pulls
+# `windows-sys`, which requires `dlltool` from MinGW binutils that doesn't
+# tolerate spaces in toolchain paths on this Windows install. We'll add
+# it back in a later phase, behind a Cargo feature flag, when a working
+# toolchain is in place.
+
+[[bin]]
+name = "routeforge"
+path = "src/main.rs"
