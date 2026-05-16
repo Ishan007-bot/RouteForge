@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = ["core", "cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["RouteForge"]
+license = "MIT"
+
+[workspace.dependencies]
+# Pinned at workspace level so both crates share the same versions.
+thiserror = "1.0"
+osmpbf = "0.3"
+# clap's default features pull in `anstyle-wincon` -> `windows-sys`, which
+# wants `dlltool` to mint a kernel32 import lib. On a Windows path with
+# spaces, MinGW's dlltool fails its subprocess CreateProcess. Color help
+# isn't worth the toolchain pain, so disable default features.
+clap = { version = "4.5", default-features = false, features = ["std", "derive", "help", "usage", "error-context"] }
+anyhow = "1.0"
+
+[profile.release]
+# A routing engine spends its life chasing cache misses and floats.
+# These are the cheap wins that don't cost compile time much.
+codegen-units = 1
+lto = "thin"
+opt-level = 3
+debug = "line-tables-only"
