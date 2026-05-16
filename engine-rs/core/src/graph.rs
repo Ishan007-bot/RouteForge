@@ -82,10 +82,16 @@ impl HighwayClass {
 
 /// A compressed-sparse-row directed graph.
 ///
-/// Invariants (checked by [`RoadGraphBuilder::build`]):
-/// - `first_edge.len() == node_count + 1`
-/// - `first_edge[node_count] == target.len()`
-/// - all four edge-parallel arrays have the same length
+/// Holds two adjacency lists in CSR:
+/// - **forward** — for each node `u`, the outgoing edges in
+///   `target[first_edge(u)..end_edge(u)]`
+/// - **reverse** — for each node `v`, the incoming "slots" in
+///   `[in_first_edge(v)..in_end_edge(v))`. Each slot exposes the
+///   source node and a pointer back into the forward edge id so edge
+///   metadata (length, highway, maxspeed) stays single-sourced.
+///
+/// The reverse adjacency is built by [`RoadGraphBuilder::build`] in
+/// one pass after the forward CSR is laid out.
 pub struct RoadGraph {
     // --- nodes ---
     node_lat: Vec<f64>,
@@ -97,6 +103,11 @@ pub struct RoadGraph {
     length_m:   Vec<f32>,    // size: edge_count
     highway:    Vec<HighwayClass>, // size: edge_count
     max_kmh:    Vec<u16>,    // size: edge_count
+
+    // --- CSR incoming adjacency ---
+    in_first_edge: Vec<u32>, // size: node_count + 1
+    in_source:     Vec<u32>, // size: edge_count — source node of this incoming slot
+    in_fwd_index:  Vec<u32>, // size: edge_count — forward edge id this slot represents
 }
 
 impl RoadGraph {
@@ -121,6 +132,30 @@ impl RoadGraph {
     pub fn out_edges(&self, node: u32) -> std::ops::Range<u32> {
         self.first_edge(node)..self.end_edge(node)
     }
+
+    /* ---- reverse / incoming adjacency ---- */
+
+    #[inline]
+    pub fn in_first_edge(&self, node: u32) -> u32 { self.in_first_edge[node as usize] }
+    #[inline]
+    pub fn in_end_edge(&self, node: u32) -> u32 { self.in_first_edge[node as usize + 1] }
+
+    /// Iterate the incoming "slot" indices for `node`. Each slot
+    /// number is opaque — feed it to [`in_source`] / [`in_fwd_index`].
+    #[inline]
+    pub fn in_edges(&self, node: u32) -> std::ops::Range<u32> {
+        self.in_first_edge(node)..self.in_end_edge(node)
+    }
+
+    /// Source node of the incoming slot `slot`.
+    #[inline]
+    pub fn in_source(&self, slot: u32) -> u32 { self.in_source[slot as usize] }
+
+    /// Forward edge id that this incoming slot represents. Use this to
+    /// look up edge metadata (length, highway, maxspeed) through the
+    /// forward-edge accessors.
+    #[inline]
+    pub fn in_fwd_index(&self, slot: u32) -> u32 { self.in_fwd_index[slot as usize] }
 
     /// Brute-force nearest-node search. O(n) per call; fine for the few
     /// queries the CLI makes. A KD-tree can replace this later without
@@ -230,10 +265,35 @@ impl RoadGraphBuilder {
             cursor[e.source as usize] += 1;
         }
 
+        // ---- reverse CSR ----
+        // Now that the forward CSR is final, each forward edge has a
+        // stable id (its index in the `target` array). Bucket-sort by
+        // target to build the incoming-slot CSR.
+        let mut in_counts = vec![0u32; n + 1];
+        for &t in &target { in_counts[t as usize + 1] += 1; }
+        for i in 1..=n { in_counts[i] += in_counts[i - 1]; }
+        let in_first_edge = in_counts;
+
+        let mut in_source    = vec![0u32; edge_count];
+        let mut in_fwd_index = vec![0u32; edge_count];
+        let mut in_cursor    = in_first_edge.clone();
+
+        // Walk forward edges by source so we can recover source(e) cheaply.
+        for u in 0..n as u32 {
+            for fwd in first_edge[u as usize]..first_edge[u as usize + 1] {
+                let v = target[fwd as usize];
+                let pos = in_cursor[v as usize] as usize;
+                in_source[pos]    = u;
+                in_fwd_index[pos] = fwd;
+                in_cursor[v as usize] += 1;
+            }
+        }
+
         Ok(RoadGraph {
             node_lat: self.node_lat,
             node_lon: self.node_lon,
             first_edge, target, length_m, highway, max_kmh,
+            in_first_edge, in_source, in_fwd_index,
         })
     }
 }
@@ -280,5 +340,30 @@ mod tests {
         let g = triangle();
         let n = g.nearest_node(48.0006, 11.0009).unwrap();
         assert_eq!(n, 2);
+    }
+
+    #[test]
+    fn reverse_adjacency_mirrors_the_forward_csr() {
+        let g = triangle();
+        // Triangle has 6 directed edges, each node has in-degree 2.
+        for n in 0..g.node_count() as u32 {
+            assert_eq!(g.in_edges(n).count(), 2);
+        }
+        // Every slot's `in_fwd_index` should point at a forward edge
+        // whose `target` is this node.
+        for n in 0..g.node_count() as u32 {
+            for slot in g.in_edges(n) {
+                let fwd = g.in_fwd_index(slot);
+                assert_eq!(g.target(fwd), n);
+                assert_eq!(g.in_source(slot), source_of_edge(&g, fwd));
+            }
+        }
+    }
+
+    fn source_of_edge(g: &RoadGraph, e: u32) -> u32 {
+        for u in 0..g.node_count() as u32 {
+            if g.first_edge(u) <= e && e < g.end_edge(u) { return u; }
+        }
+        panic!("orphan edge {e}");
     }
 }

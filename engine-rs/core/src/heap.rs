@@ -54,6 +54,10 @@ impl IndexedBinaryHeap {
         }
     }
 
+    /// Inspect the smallest-keyed node without removing it.
+    #[inline]
+    pub fn peek_min(&self) -> Option<u32> { self.heap.first().copied() }
+
     /// Remove and return the node with the smallest key.
     pub fn pop_min(&mut self) -> Option<u32> {
         if self.heap.is_empty() { return None; }
